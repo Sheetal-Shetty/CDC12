@@ -2,8 +2,8 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: Github-pages-deploy-from-github
-  title: Deploy to Github pages from GitHub Repo secondone
-  description: Create and deploy a Docker container from a GitHub repository URLsecond.
+  title: Backstage DRiven Internal Developer Platform
+  description: Automates website deployment using Docker containers or GitHub Pages hosting.
 spec:
   owner: user:guest
   type: service
@@ -330,12 +330,12 @@ spec:
     links:
       - title: "View on GitHub Pages"
         #if: "${{ parameters.deploy_method == 'github pages' }}"
-        if: "${{ parameters.stack == 'Github pages' }}"
+        if: ${{ parameters.stack == 'Github pages' }}
         url: "https://${{ parameters.Github_URL | replace('https://github.com/', '') | replace('.git', '') | replace('/', '.github.io/') }}/"
         #url: ${{ steps.github-pages.output.pageUrl }}
         icon: "website"
 
       - title: "Open Website"
-        if: "${{ parameters.stack == 'Docker' }}"
+        if: ${{ parameters.stack == 'Docker' }}
         url: "http://localhost:89"
         icon: "website"
