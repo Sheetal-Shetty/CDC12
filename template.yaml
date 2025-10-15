@@ -91,15 +91,46 @@ spec:
                   properties: {}
           
   steps:
-    # - id: fetch-template
-    #   name: Fetch template files
-    #   action: fetch:plain
-    #   input:
-    #     url: ${{ parameters.Github_URL }}
-    #     targetPath: .
+    - id: fetch-template
+      name: Fetch template files
+      if: ${{ parameters.stack == 'Docker' }}
+      action: fetch:plain
+      input:
+        url: ${{ parameters.Github_URL }}
+        targetPath: .
+
+
+    - id: build_docker
+      name: Build Docker Image
+      if: ${{ parameters.stack == 'Docker' }}
+      action: shell:run
+      input:
+        cwd: ${{ steps.clone.output.path }}
+        command: docker 
+        args: ["build", "-f", "${{ parameters.extraFields.Dockerfile }}", "-t", "my-image:latest", "."]
+
+
+    - id: cleanup
+      name: Remove old container if exists
+      if: ${{ parameters.stack == 'Docker' }}
+      action: shell:run
+      input:
+        command: docker
+        args: ["rm", "-f", "Cafe-container"]
+                
+
+    - id: deploy_docker
+      name: Deploy Docker Container
+      if: ${{ parameters.stack == 'Docker' }}
+      action: shell:run
+      input:
+        cwd: ${{ steps.clone.output.path }}
+        command: docker
+        args: ["run", "--name", "Cafe-container", "-it", "-d", "-p", "89:${{ parameters.extraFields.Port }}", "my-image:latest"] 
 
     - id: fetch
       name: Fetch GitHub Repo
+      if: ${{ parameters.stack == 'Github pages' }}
       action: fetch:plain
       input:
         url: ${{ parameters.Github_URL }}
@@ -187,43 +218,7 @@ spec:
     
             echo "✅ All static files copied to ./dist successfully!"
         cwd: ./site
-
-
-############################################TILL HERE
-    
-    # - id: build
-    #   name: Build Project
-    #   action: shell:run
-    #   input:
-    #     command: bash
-    #     args:
-    #       - -c
-    #       - |
-    #         set -euo pipefail
-    #         echo "📁 Working directory: $(pwd)"
-    #         echo "🔍 Searching for project type..."
-    
-    #         PACKAGE_JSON=$(find . -name package.json -print -quit || true)
-    
-    #         if [ -n "$PACKAGE_JSON" ]; then
-    #           echo "📦 Node.js project detected: $PACKAGE_JSON"
-    #           cd "$(dirname "$PACKAGE_JSON")"
-    #           npm install
-    #           npm run build || { echo "❌ npm build failed"; exit 1; }
-    #           if [ -d build ]; then
-    #             mv build ../dist
-    #           elif [ -d dist ]; then
-    #             mv dist ../dist
-    #           fi
-    #           echo "✅ Node.js build complete"
-    #         elif [ -f "index.html" ]; then
-    #           echo "🌐 Plain static site detected, copying to dist..."
-    #           mkdir -p ./dist
-    #           cp -r ./* ./dist
-    #         else
-    #           echo "⚠️ Unknown project type, skipping build"
-    #         fi
-    #     cwd: ./site
+        
 
     - id: publish
       name: Deploy Static Site to GitHub Pages
@@ -331,125 +326,16 @@ spec:
     #     sourcePath: /
     #     token: ${{ parameters.extraFields.GithubToken }}
 
-
-    ##########################Adding for Github Pages##########################
-
-    # - id: fetch
-    #   name: Fetch Template
-    #   action: fetch:template
-    #   input:
-    #     url: ./template-content
-    #     targetPath: ./site
-
-    # - id: build
-    #   name: Build Static Site
-    #   action: scaffolder:execute-shell-command #execute:template
-    #   input:
-    #     #command: npm install && npm run build
-    #       shell: bash
-    #       script: |
-    #       # Search for Node.js project
-    #         PACKAGE_JSON_PATH=$(find . -name package.json -print -quit)
-    #         if [ -n "$PACKAGE_JSON_PATH" ]; then
-    #           echo "📦 Node.js project detected at $PACKAGE_JSON_PATH"
-    #           cd $(dirname "$PACKAGE_JSON_PATH")
-    #           npm install
-    #           npm run build
-            
-    #         # Search for Maven project
-    #         elif MAVEN_POM_PATH=$(find . -name pom.xml -print -quit); [ -n "$MAVEN_POM_PATH" ]; then
-    #           echo "☕ Java Maven project detected at $MAVEN_POM_PATH"
-    #           cd $(dirname "$MAVEN_POM_PATH")
-    #           mvn package
-            
-    #         # Search for Gradle project
-    #         elif GRADLE_PATH=$(find . \( -name build.gradle -o -name gradlew \) -print -quit); [ -n "$GRADLE_PATH" ]; then
-    #           echo "☕ Java Gradle project detected at $GRADLE_PATH"
-    #           cd $(dirname "$GRADLE_PATH")
-    #           ./gradlew build
-            
-    #         # Search for Python project
-    #         elif PYTHON_REQ_PATH=$(find . -name requirements.txt -print -quit); [ -n "$PYTHON_REQ_PATH" ]; then
-    #           echo "🐍 Python project detected at $PYTHON_REQ_PATH"
-    #           cd $(dirname "$PYTHON_REQ_PATH")
-    #           pip install -r requirements.txt
-    #           python manage.py collectstatic || echo "No static files to collect"
-            
-    #         # Search for plain static site
-    #         elif HTML_PATH=$(find . -name index.html -print -quit); [ -n "$HTML_PATH" ]; then
-    #           echo "🌐 Plain static site detected at $HTML_PATH (no build needed)"
-            
-    #         else
-    #           echo "⚠️ Unknown project type. No build executed."
-    #         fi
-
-    #       workingDirectory: .
-
-    # - id: publish
-    #   name: Publish to GitHub
-    #   action: publish:github
-    #   input:
-    #     repoUrl: ${{ parameters.extraFields.Github }}
-    #     defaultBranch: gh-pages
-    #     sourcePath: ./dist
-    #     protectDefaultBranch: false
-
-
-  # output:
-  #   links:
-  #     - title: Repository
-  #       url: ${{ steps.publish.output.remoteUrl }}
-  #     - title: Live GitHub Pages Site
-  #       url: ${{ steps.github-pages.output.pageUrl }}
-
-
-    
-################################################################################################################################
-    # - id: build_docker
-    #   name: Build Docker Image
-    #   if: ${{ parameters.stack == 'Docker' }}
-    #   action: shell:run
-    #   input:
-    #     cwd: ${{ steps.clone.output.path }}
-    #     command: docker 
-    #     args: ["build", "-f", "${{ parameters.extraFields.Dockerfile }}", "-t", "my-image:latest", "."]
-
-
-    # - id: cleanup
-    #   name: Remove old container if exists
-    #   if: ${{ parameters.stack == 'Docker' }}
-    #   action: shell:run
-    #   input:
-    #     command: docker
-    #     args: ["rm", "-f", "Cafe-container"]
-                
-
-    # - id: deploy_docker
-    #   name: Deploy Docker Container
-    #   if: ${{ parameters.stack == 'Docker' }}
-    #   action: shell:run
-    #   input:
-    #     cwd: ${{ steps.clone.output.path }}
-    #     command: docker
-    #     args: ["run", "--name", "Cafe-container", "-it", "-d", "-p", "89:${{ parameters.extraFields.Port }}", "my-image:latest"]
-
-    # - id: run-echo
-    #   name: Echo Test
-    #   action: shell:run
-    #   input:
-    #     command: echo
-    #     args: ["Hello Backstage!"]
-
-  # output:
-  #   links:
-  #     - title: "Open Website"
-  #       #url: "http://localhost:89"
-  #       icon: "website"
   output:
     links:
       - title: "View on GitHub Pages"
         #if: "${{ parameters.deploy_method == 'github pages' }}"
-        # if: "${{ parameters.stack == 'Github pages' }}"
+        if: "${{ parameters.stack == 'Github pages' }}"
         url: "https://${{ parameters.Github_URL | replace('https://github.com/', '') | replace('.git', '') | replace('/', '.github.io/') }}/"
         #url: ${{ steps.github-pages.output.pageUrl }}
+        icon: "website"
+
+      - title: "Open Website"
+        if: "${{ parameters.stack == 'Docker' }}"
+        url: "http://localhost:89"
         icon: "website"
