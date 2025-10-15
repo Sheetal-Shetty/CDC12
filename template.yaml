@@ -105,49 +105,91 @@ spec:
         url: ${{ parameters.Github_URL }}
         targetPath: ./site  # fetch code into ./site folder
 
-    # - id: fetch
-    #   name: Fetch GitHub Repo
-    #   action: fetch:plain
-    #   input:
-    #     url: ${{ parameters.Github_URL }}
-    #     targetPath: ./site
-
     - id: build
-      name: Prepare Static Site
-      if: ${{ parameters.stack == 'Github pages' }}
+      name: Build Project
       action: shell:run
       input:
         command: bash
         args:
           - -c
           - |
-            set -e
-            echo "🌐 Static site detected"
-            echo "📍 Working directory: $(pwd)"
-            echo "📂 Files present (excluding hidden):"
-            find . -maxdepth 2 -not -path '*/.*'
+            set -euo pipefail
+            echo "📁 Working directory: $(pwd)"
+            echo "🔍 Detecting project type..."
     
-            echo "📦 Creating ./dist folder"
-            mkdir -p ./dist
+            PACKAGE_JSON=$(find . -name package.json -print -quit || true)
+            REQUIREMENTS=$(find . -name requirements.txt -print -quit || true)
     
-            # Copy visible files from root if any
-            if [ "$(ls -A | grep -v '^\.' | wc -l)" -gt 0 ]; then
-              echo "📋 Copying files from root to ./dist..."
-              rsync -av --exclude='.*' ./ ./dist/
+            if [ -n "$PACKAGE_JSON" ]; then
+              echo "📦 Node.js project detected at $PACKAGE_JSON"
+              cd "$(dirname "$PACKAGE_JSON")"
+              npm install
+              npm run build || { echo "❌ npm build failed"; exit 1; }
+    
+              if [ -d build ]; then
+                mv build ../dist
+              elif [ -d dist ]; then
+                mv dist ../dist
+              fi
+              echo "✅ Node.js build complete"
+    
+            elif [ -n "$REQUIREMENTS" ]; then
+              echo "🐍 Python project detected at $REQUIREMENTS"
+              cd "$(dirname "$REQUIREMENTS")"
+              pip install -r requirements.txt
+              # optionally run python build step if you have one
+              echo "✅ Python dependencies installed"
+              mkdir -p ../dist
+              cp -r . ../dist
+    
+            elif [ -f "index.html" ]; then
+              echo "🌐 Static site detected, copying to dist..."
+              mkdir -p ./dist
+              cp -r ./* ./dist
+              echo "✅ Static site ready"
+    
+            else
+              echo "⚠️ Unknown project type, skipping build."
             fi
-    
-            # Copy all non-hidden subfolders into dist
-            SUBFOLDERS=$(find . -mindepth 1 -maxdepth 1 -type d -not -name '.*')
-            for F in $SUBFOLDERS; do
-              echo "📂 Copying contents of $F to ./dist..."
-              rsync -av --exclude='.*' "$F"/ ./dist/
-            done
-    
-            echo "✅ All static files copied to ./dist successfully!"
         cwd: ./site
+    
+############## Commenting below working build commented on 10-15-2025 at 2:14PM######
+    # - id: build
+    #   name: Prepare Static Site
+    #   if: ${{ parameters.stack == 'Github pages' }}
+    #   action: shell:run
+    #   input:
+    #     command: bash
+    #     args:
+    #       - -c
+    #       - |
+    #         set -e
+    #         echo "🌐 Static site detected"
+    #         echo "📍 Working directory: $(pwd)"
+    #         echo "📂 Files present (excluding hidden):"
+    #         find . -maxdepth 2 -not -path '*/.*'
+    
+    #         echo "📦 Creating ./dist folder"
+    #         mkdir -p ./dist
+    
+    #         # Copy visible files from root if any
+    #         if [ "$(ls -A | grep -v '^\.' | wc -l)" -gt 0 ]; then
+    #           echo "📋 Copying files from root to ./dist..."
+    #           rsync -av --exclude='.*' ./ ./dist/
+    #         fi
+    
+    #         # Copy all non-hidden subfolders into dist
+    #         SUBFOLDERS=$(find . -mindepth 1 -maxdepth 1 -type d -not -name '.*')
+    #         for F in $SUBFOLDERS; do
+    #           echo "📂 Copying contents of $F to ./dist..."
+    #           rsync -av --exclude='.*' "$F"/ ./dist/
+    #         done
+    
+    #         echo "✅ All static files copied to ./dist successfully!"
+    #     cwd: ./site
 
 
-
+############################################TILL HERE
     
     # - id: build
     #   name: Build Project
