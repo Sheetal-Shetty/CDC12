@@ -91,6 +91,13 @@ spec:
                   properties: {}
           
   steps:
+    - id: start_timer
+      name: Start Timer
+      if: ${{ parameters.stack == 'Docker' }}
+      action: debug:log
+      input:
+        message: ${{ (setvar "start_time" (now)) }}
+        
     - id: fetch-template
       name: Fetch template files
       if: ${{ parameters.stack == 'Docker' }}
@@ -128,12 +135,14 @@ spec:
         command: docker
         args: ["run", "--name", "Cafe-container", "-it", "-d", "-p", "89:${{ parameters.extraFields.Port }}", "my-image:latest"] 
 
-    - id: start_timer
-      name: Start Timer
-      if: ${{ parameters.stack == 'Github pages' }}
+
+    - id: end_timer
+      name: End Timer
+      if: ${{ parameters.stack == 'Docker' }}
       action: debug:log
       input:
-        message: ${{ (setvar "start_time" (now)) }}
+        message: >
+          Total execution time: ${{ duration(var.start_time, now) }}
 
     - id: fetch
       name: Fetch GitHub Repo
