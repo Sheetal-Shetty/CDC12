@@ -93,10 +93,11 @@ spec:
   steps:
     - id: start_timer
       name: Start Timer
-      if: ${{ parameters.stack == 'Docker' }}
       action: debug:log
       input:
-        message: ${{ (setvar "start_time" (now)) }}
+        message: "Template started"
+      output:
+        start_time: ${{ now }}  # capture current timestamp
         
     - id: fetch-template
       name: Fetch template files
@@ -135,14 +136,12 @@ spec:
         command: docker
         args: ["run", "--name", "Cafe-container", "-it", "-d", "-p", "89:${{ parameters.extraFields.Port }}", "my-image:latest"] 
 
-
     - id: end_timer
       name: End Timer
-      if: ${{ parameters.stack == 'Docker' }}
       action: debug:log
       input:
         message: >
-          Total execution time: ${{ duration(var.start_time, now) }}
+          Total execution time: ${{ duration(steps.start_timer.output.start_time, now) }}
 
     - id: fetch
       name: Fetch GitHub Repo
